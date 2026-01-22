@@ -1,51 +1,52 @@
-import pymupdf # Это база для работы с PDF
+import pymupdf
 import pathlib
 import glob
 import os
+import shutil
 
-print("--- ЗАПУСК В РЕЖИМЕ КАРТИНОК (SCAN MODE) ---")
+print("--- ЗАПУСК: ЖЕЛЕЗОБЕТОННЫЙ ВАРИАНТ ---")
 
-# 1. Ищем файл
+# 1. Очистка старого (чтобы не было путаницы)
+if os.path.exists("docs"):
+    shutil.rmtree("docs")
+pathlib.Path("docs/img").mkdir(parents=True, exist_ok=True)
+
+# 2. Ищем PDF
 pdf_files = glob.glob("*.pdf")
 if not pdf_files:
-    print("ОШИБКА: PDF файл не найден!")
+    print("ОШИБКА: PDF файл не найден! Загрузи его в корень репозитория.")
     exit(1)
 
 pdf_filename = pdf_files[0]
 doc = pymupdf.open(pdf_filename)
+print(f"Обрабатываю учебник: {pdf_filename} ({len(doc)} страниц)")
 
-# 2. Подготовка папок
-docs_folder = pathlib.Path("docs")
-docs_folder.mkdir(exist_ok=True)
+# 3. Создаем контент
+md_content = f"# {pdf_filename}\n\n"
+md_content += "Если картинки не грузятся — обновите страницу через минуту.\n\n"
 
-# Сюда будем писать код страницы сайта
-md_content = f"# Учебник: {pdf_filename}\n\n"
-md_content += "**Примечание:** Это скан учебника. Поиск по тексту недоступен.\n\n"
-
-print(f"Всего страниц: {len(doc)}")
-
-# 3. Проходим по каждой странице
-for page_num in range(len(doc)):
-    page = doc.load_page(page_num)
+for i, page in enumerate(doc):
+    page_num = i + 1
     
-    # Делаем картинку (zoom=2 улучшает качество в 2 раза)
-    pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
+    # Имя файла: просто цифра, чтобы не было проблем с путями
+    image_filename = f"{page_num}.png"
+    # Сохраняем в папку docs/img/
+    image_path = pathlib.Path(f"docs/img/{image_filename}")
     
-    image_name = f"page_{page_num + 1}.png"
-    image_path = docs_folder / image_name
-    
-    # Сохраняем картинку в папку docs
+    # Рендерим картинку (zoom=1.5 — баланс качества и скорости)
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(1.5, 1.5))
     pix.save(image_path)
     
-    # Добавляем картинку в markdown файл
-    md_content += f"## Страница {page_num + 1}\n\n"
-    md_content += f"![Страница {page_num + 1}]({image_name})\n\n"
-    md_content += "---\n\n" # Разделитель
+    # Используем HTML тег <img>, он надежнее, чем Markdown
+    # loading="lazy" ускоряет загрузку сайта
+    md_content += f"### Страница {page_num}\n"
+    md_content += f'<img src="img/{image_filename}" alt="Страница {page_num}" width="100%" loading="lazy" />\n\n'
+    md_content += "---\n\n"
     
-    if (page_num + 1) % 10 == 0:
-        print(f"Обработано {page_num + 1} страниц...")
+    if page_num % 20 == 0:
+        print(f"Готово {page_num} страниц...")
 
-# 4. Сохраняем главный файл сайта
-(docs_folder / "index.md").write_text(md_content, encoding='utf-8')
+# 4. Записываем index.md
+(pathlib.Path("docs") / "index.md").write_text(md_content, encoding='utf-8')
 
-print("Готово! Все страницы превращены в картинки для сайта.")
+print("УСПЕХ! Все картинки разложены по папкам.")
