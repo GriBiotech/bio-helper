@@ -1,0 +1,9 @@
+site_name: Помощник по Биологии
+theme:
+  name: material
+  language: ru
+  features:
+    - search.suggest
+    - search.highlight
+nav:
+  - Учебник: index.md
