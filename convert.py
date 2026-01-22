@@ -4,49 +4,60 @@ import glob
 import os
 import shutil
 
-print("--- ЗАПУСК: ЖЕЛЕЗОБЕТОННЫЙ ВАРИАНТ ---")
+print("--- ПОПЫТКА №3: РОДНОЙ ФОРМАТ ---")
 
-# 1. Очистка старого (чтобы не было путаницы)
+# 1. Чистим папку docs, чтобы не было мусора
 if os.path.exists("docs"):
     shutil.rmtree("docs")
-pathlib.Path("docs/img").mkdir(parents=True, exist_ok=True)
+    
+# Создаем папки заново
+img_folder = pathlib.Path("docs/assets") # Назовем папку assets, так надежнее
+img_folder.mkdir(parents=True, exist_ok=True)
 
 # 2. Ищем PDF
 pdf_files = glob.glob("*.pdf")
 if not pdf_files:
-    print("ОШИБКА: PDF файл не найден! Загрузи его в корень репозитория.")
+    # Если PDF нет, создаем аварийную страницу
+    (pathlib.Path("docs") / "index.md").write_text("# ОШИБКА: Нет файла PDF в репозитории!", encoding='utf-8')
     exit(1)
 
 pdf_filename = pdf_files[0]
-doc = pymupdf.open(pdf_filename)
-print(f"Обрабатываю учебник: {pdf_filename} ({len(doc)} страниц)")
+print(f"Обрабатываю: {pdf_filename}")
 
-# 3. Создаем контент
-md_content = f"# {pdf_filename}\n\n"
-md_content += "Если картинки не грузятся — обновите страницу через минуту.\n\n"
+try:
+    doc = pymupdf.open(pdf_filename)
+except Exception as e:
+    print(f"Файл битый: {e}")
+    exit(1)
+
+# 3. Генерируем контент
+md_content = f"# Учебник: {pdf_filename}\n\n"
+md_content += "Если вы видите этот текст, значит сайт работает. Листайте вниз.\n\n"
+
+# Настройки качества (dpi=100 - это баланс, чтобы телефон не вис, но текст был четким)
+# Если поставить больше, сайт может не загрузиться.
+matrix = pymupdf.Matrix(1.2, 1.2) 
 
 for i, page in enumerate(doc):
     page_num = i + 1
+    image_name = f"page_{page_num}.jpg" # Используем JPG, они легче PNG
     
-    # Имя файла: просто цифра, чтобы не было проблем с путями
-    image_filename = f"{page_num}.png"
-    # Сохраняем в папку docs/img/
-    image_path = pathlib.Path(f"docs/img/{image_filename}")
+    # Сохраняем картинку
+    pix = page.get_pixmap(matrix=matrix)
+    pix.save(img_folder / image_name)
     
-    # Рендерим картинку (zoom=1.5 — баланс качества и скорости)
-    pix = page.get_pixmap(matrix=pymupdf.Matrix(1.5, 1.5))
-    pix.save(image_path)
-    
-    # Используем HTML тег <img>, он надежнее, чем Markdown
-    # loading="lazy" ускоряет загрузку сайта
-    md_content += f"### Страница {page_num}\n"
-    md_content += f'<img src="img/{image_filename}" alt="Страница {page_num}" width="100%" loading="lazy" />\n\n'
+    # ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ:
+    # Используем стандартный Markdown (![текст](путь)), а не HTML.
+    # Это 100% понимает любой движок.
+    md_content += f"## Страница {page_num}\n\n"
+    md_content += f"![Стр {page_num}](assets/{image_name})\n\n"
     md_content += "---\n\n"
     
-    if page_num % 20 == 0:
-        print(f"Готово {page_num} страниц...")
+    # Пишем в лог каждые 10 страниц
+    if page_num % 10 == 0:
+        print(f"Сделано {page_num} из {len(doc)}")
 
-# 4. Записываем index.md
+# 4. Сохраняем файл сайта
 (pathlib.Path("docs") / "index.md").write_text(md_content, encoding='utf-8')
 
-print("УСПЕХ! Все картинки разложены по папкам.")
+print("УСПЕХ! Код сгенерирован в безопасном формате.")
