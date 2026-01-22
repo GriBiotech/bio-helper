@@ -19,7 +19,7 @@ jobs:
           python-version: 3.x
 
       - name: Install dependencies
-        run: pip install pymupdf4llm mkdocs mkdocs-material
+        run: pip install pymupdf pymupdf4llm mkdocs mkdocs-material
 
       - name: Convert PDF to Site
         run: python convert.py
