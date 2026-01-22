@@ -1,63 +1,45 @@
-import pymupdf
+import shutil
 import pathlib
 import glob
 import os
-import shutil
 
-print("--- ПОПЫТКА №3: РОДНОЙ ФОРМАТ ---")
+print("--- ПЛАН Б: ВСТРАИВАНИЕ PDF ЦЕЛИКОМ ---")
 
-# 1. Чистим папку docs, чтобы не было мусора
+# 1. Подготовка папки
 if os.path.exists("docs"):
     shutil.rmtree("docs")
-    
-# Создаем папки заново
-img_folder = pathlib.Path("docs/assets") # Назовем папку assets, так надежнее
-img_folder.mkdir(parents=True, exist_ok=True)
+pathlib.Path("docs").mkdir(exist_ok=True)
 
-# 2. Ищем PDF
+# 2. Ищем твой файл
 pdf_files = glob.glob("*.pdf")
 if not pdf_files:
-    # Если PDF нет, создаем аварийную страницу
-    (pathlib.Path("docs") / "index.md").write_text("# ОШИБКА: Нет файла PDF в репозитории!", encoding='utf-8')
+    print("ОШИБКА: Файл PDF не найден! Загрузи его в репозиторий.")
     exit(1)
 
-pdf_filename = pdf_files[0]
-print(f"Обрабатываю: {pdf_filename}")
+original_pdf = pdf_files[0]
+# Копируем файл внутрь папки сайта под простым именем book.pdf
+target_pdf = "docs/book.pdf"
 
-try:
-    doc = pymupdf.open(pdf_filename)
-except Exception as e:
-    print(f"Файл битый: {e}")
-    exit(1)
+print(f"Копирую {original_pdf} -> {target_pdf}")
+shutil.copy(original_pdf, target_pdf)
 
-# 3. Генерируем контент
-md_content = f"# Учебник: {pdf_filename}\n\n"
-md_content += "Если вы видите этот текст, значит сайт работает. Листайте вниз.\n\n"
+# 3. Создаем страницу просмотра
+# Мы используем специальный HTML-код, который говорит браузеру: "Покажи PDF здесь"
+md_content = """# Учебник Биологии
 
-# Настройки качества (dpi=100 - это баланс, чтобы телефон не вис, но текст был четким)
-# Если поставить больше, сайт может не загрузиться.
-matrix = pymupdf.Matrix(1.2, 1.2) 
+<a href="book.pdf" target="_blank" style="background: green; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px;">
+   📥 Скачать / Открыть на весь экран
+</a>
 
-for i, page in enumerate(doc):
-    page_num = i + 1
-    image_name = f"page_{page_num}.jpg" # Используем JPG, они легче PNG
-    
-    # Сохраняем картинку
-    pix = page.get_pixmap(matrix=matrix)
-    pix.save(img_folder / image_name)
-    
-    # ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ:
-    # Используем стандартный Markdown (![текст](путь)), а не HTML.
-    # Это 100% понимает любой движок.
-    md_content += f"## Страница {page_num}\n\n"
-    md_content += f"![Стр {page_num}](assets/{image_name})\n\n"
-    md_content += "---\n\n"
-    
-    # Пишем в лог каждые 10 страниц
-    if page_num % 10 == 0:
-        print(f"Сделано {page_num} из {len(doc)}")
+Если учебник не отображается ниже, нажмите кнопку выше.
 
-# 4. Сохраняем файл сайта
+<div style="height: 90vh; width: 100%;">
+    <iframe src="book.pdf" width="100%" height="100%" style="border: none;">
+    Ваш браузер не поддерживает встроенные PDF.
+    </iframe>
+</div>
+"""
+
 (pathlib.Path("docs") / "index.md").write_text(md_content, encoding='utf-8')
 
-print("УСПЕХ! Код сгенерирован в безопасном формате.")
+print("ГОТОВО! PDF встроен в сайт.")
