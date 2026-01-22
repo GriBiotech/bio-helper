@@ -1,9 +1,12 @@
-site_name: Помощник по Биологии
+site_name: Учебник Биологии
 theme:
   name: material
   language: ru
+  palette: 
+    scheme: default # Светлая тема (лучше для чтения сканов)
   features:
-    - search.suggest
-    - search.highlight
+    - navigation.top
+    - navigation.tracking
+
 nav:
-  - Учебник: index.md
+  - Читать учебник: index.md
